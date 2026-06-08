@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DeutschTrainer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;900&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: #0f172a; font-family: 'IBM Plex Sans', sans-serif; min-height: 100vh; padding: 16px; }
+@keyframes xpburst {
+  0% { opacity: 0; transform: translate(-50%,-60%) scale(0.7); }
+  30% { opacity: 1; transform: translate(-50%,-70%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%,-90%) scale(1); }
+}
+.card { background: #0f1f35; border-radius: 16px; padding: 20px; border: 1px solid #1e3a5f; width: 100%; max-width: 460px; margin: 0 auto; }
+.btn-primary { display: block; width: 100%; background: #2563eb; color: #fff; border: none; border-radius: 12px; padding: 14px; font-weight: 800; font-size: 16px; cursor: pointer; font-family: 'Syne', sans-serif; text-align: center; -webkit-appearance: none; }
+.btn-secondary { display: block; width: 100%; background: transparent; color: #94a3b8; border: 2px solid #334155; border-radius: 12px; padding: 12px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 10px; -webkit-appearance: none; }
+.btn-ghost { background: transparent; color: #60a5fa; border: none; cursor: pointer; font-weight: 600; font-size: 14px; padding: 4px; -webkit-appearance: none; }
+.option { display: block; width: 100%; background: #1e293b; border: 2px solid #334155; color: #cbd5e1; border-radius: 12px; padding: 13px 16px; text-align: left; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 10px; font-family: inherit; -webkit-appearance: none; }
+.option.selected { background: #1e3a5f; border-color: #2563eb; color: #93c5fd; }
+.option.correct { background: #14532d; border-color: #22c55e; color: #86efac; }
+.option.wrong { background: #450a0a; border-color: #ef4444; color: #fca5a5; }
+.feedback-good { background: #14532d; border: 1.5px solid #22c55e; color: #86efac; border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-bottom: 12px; }
+.feedback-bad { background: #450a0a; border: 1.5px solid #ef4444; color: #fca5a5; border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-bottom: 12px; }
+.explanation { background: #0f172a; border-radius: 12px; padding: 14px; font-size: 13px; color: #94a3b8; border-left: 3px solid #2563eb; margin-bottom: 12px; line-height: 1.5; }
+.progress-bar { background: #1e293b; border-radius: 99px; height: 10px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 99px; transition: width 0.5s; }
+.badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 99px; margin-bottom: 14px; }
+.xp-burst { position: fixed; top: 50%; left: 50%; font-size: 26px; font-weight: 900; color: #facc15; pointer-events: none; animation: xpburst 0.8s ease forwards; z-index: 999; font-family: 'Syne', sans-serif; text-shadow: 0 2px 16px #00000088; }
+.stat-box { flex: 1; background: #1e293b; border-radius: 12px; padding: 10px 0; text-align: center; }
+.stat-val { font-size: 20px; font-weight: 900; font-family: 'Syne', sans-serif; }
+.stat-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+.level-btn { flex: 1; padding: 10px 4px; border-radius: 10px; border: 2px solid #1e293b; background: #1e293b; color: #475569; font-weight: 700; font-size: 13px; cursor: pointer; font-family: 'Syne', sans-serif; text-align: center; -webkit-appearance: none; }
+.level-btn.active { border-color: #2563eb; background: #1d3557; color: #93c5fd; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const XP_PER_CORRECT = 15;
+const XP_LEVEL_UP = 100;
+
+const QUESTIONS = [
+  { type:"mc", topic:"På restaurant", question:"Du vil gerne have regningen. Hvad siger du?", options:["Ich hätte gerne die Rechnung, bitte.","Geben Sie mir Geld!","Ich will bezahlen jetzt.","Können Sie mir helfen?"], correct:0, explanation:"'Ich hätte gerne' er den høflige form. Man hører også bare 'Die Rechnung, bitte!'." },
+  { type:"mc", topic:"På restaurant", question:"Tjeneren spørger: 'Hat es geschmeckt?' Hvad spørger han om?", hint:"Hat es geschmeckt? = Har det smagt?", options:["Om du vil have dessert","Om det smagte godt","Om du vil have regningen","Om du er klar til at bestille"], correct:1, explanation:"Helt standard sætning fra tjenere i tysktalende lande." },
+  { type:"mc", topic:"På café", question:"Du vil gerne have en kaffe med mælk. Hvad siger du?", options:["Einen Kaffee mit Milch, bitte.","Ein Kaffee, danke.","Ich möchte Tee.","Haben Sie Wasser?"], correct:0, explanation:"'Einen Kaffee' — hankøn i akkusativ. 'mit Milch' tilføjes direkte." },
+  { type:"mc", topic:"På café", question:"Hvad betyder 'Zum hier trinken oder zum Mitnehmen?'", hint:"Zum hier trinken = til at drikke her / zum Mitnehmen = til at tage med", options:["Vil du have is i din kaffe?","Drikker du her eller tager du med?","Vil du have stor eller lille?","Hvad vil du gerne have?"], correct:1, explanation:"Det klassiske spørgsmål ved kassen." },
+  { type:"mc", topic:"Smalltalk", question:"En kollega siger 'Na, wie läuft's?' Hvad mener han?", hint:"Na, wie läuft's? = Nå, hvordan går det?", options:["Hvordan løber du?","Hvad sker der / hvordan går det?","Skal vi gå en tur?","Hvornår holder du pause?"], correct:1, explanation:"Meget uformel hverdagssnak. Svar fx 'Gut, danke!' eller 'Ja, geht so...'." },
+  { type:"mc", topic:"Smalltalk", question:"Hvad svarer man naturligt på 'Alles klar?'", hint:"Alles klar? = Alt i orden?", options:["Nein, ich bin krank.","Ja, alles klar!","Ich verstehe nicht.","Bitte wiederholen Sie."], correct:1, explanation:"'Alles klar?' er uformel hilsen. Svar bare 'Ja, alles klar!'" },
+  { type:"mc", topic:"Smalltalk", question:"Hvad betyder 'Das geht klar'?", hint:"Das geht klar = det er i orden / no problem", options:["Det er klart vejr","Det er i orden / det fikser jeg","Det er svært","Det er ikke muligt"], correct:1, explanation:"Meget brugt hverdagsudtryk. Fx 'Kannst du das machen?' – 'Ja, geht klar!'" },
+  { type:"mc", topic:"Smalltalk", question:"Du møder en nabo og vil sige 'Vi ses!' Hvad siger du?", options:["Auf Wiedersehen!","Bis später!","Tschüss, bis dann!","Alle tre virker"], correct:3, explanation:"Alle tre er korrekte. 'Tschüss' er mest uformelt og hyppigt i hverdagen." },
+  { type:"mc", topic:"Transport", question:"Du vil købe en billet til Berlin. Hvad siger du i skranken?", options:["Berlin, bitte.","Einmal nach Berlin, bitte.","Ich fahre Berlin.","Ein Ticket Berlin kaufen."], correct:1, explanation:"'Einmal nach Berlin, bitte' — 'einmal' (én billet) + 'nach' (til by)." },
+  { type:"mc", topic:"Transport", question:"Skiltene viser 'Gleis 7'. Hvad betyder det?", hint:"Gleis = perron / spor", options:["Terminal 7","Perron/spor 7","Gate 7","Udgang 7"], correct:1, explanation:"'Gleis' er det tyske ord for perron eller spor." },
+  { type:"mc", topic:"Transport", question:"Hvad betyder 'Der Zug hat 20 Minuten Verspätung'?", hint:"Der Zug = toget / Verspätung = forsinkelse", options:["Toget er aflyst","Toget er 20 minutter forsinket","Toget afgår om 20 minutter","Toget er fuldt"], correct:1, explanation:"'Verspätung' = forsinkelse. Desværre velkendt på tyske togrejser." },
+  { type:"mc", topic:"Indkøb", question:"Du vil spørge hvad noget koster. Hvad siger du?", options:["Wie viel kostet das?","Was ist der Preis?","Haben Sie das billiger?","Ich möchte das kaufen."], correct:0, explanation:"'Wie viel kostet das?' er mest naturligt. 'Was kostet das?' virker også." },
+  { type:"mc", topic:"Indkøb", question:"Ekspedienten spørger 'Kann ich Ihnen helfen?' Hvad vil hun?", hint:"Kann ich Ihnen helfen? = Kan jeg hjælpe dig?", options:["Kan hun låne noget af dig?","Kan hun hjælpe dig med noget?","Hvad vil du gerne have?","Er du tilfreds?"], correct:1, explanation:"Standard hilsen fra butiksansatte. Svar: 'Ja, ich suche...' eller 'Nein danke, ich schaue nur'." },
+  { type:"mc", topic:"Indkøb", question:"Du vil bare kigge. Hvad siger du?", options:["Ich kaufe nichts.","Ich schaue mich nur um, danke.","Nein, gehen Sie weg.","Ich brauche keine Hilfe."], correct:1, explanation:"'Ich schaue mich nur um' = 'Jeg kigger bare'. Høflig og meget brugt." },
+  { type:"mc", topic:"Vejret", question:"Hvad betyder 'Es regnet in Strömen'?", hint:"Es regnet = det regner / in Strömen = i strømme", options:["Det drypper lidt","Det øser ned","Det er overskyet","Det blæser kraftigt"], correct:1, explanation:"Fast udtryk — bogstaveligt 'det regner i strømme'." },
+  { type:"mc", topic:"Vejret", question:"Hvad betyder 'Heute ist es bewölkt'?", hint:"Heute = i dag / bewölkt = overskyet", options:["Det er solskin","Det er overskyet","Det er koldt","Det er tåget"], correct:1, explanation:"'Bewölkt' = overskyet. Også nyttigt: 'sonnig' (solrigt), 'windig' (blæsende)." },
+  { type:"mc", topic:"På arbejdet", question:"Din kollega siger 'Ich bin gleich zurück.' Hvad mener han?", hint:"Ich bin gleich zurück = jeg er straks tilbage", options:["Han er ikke der","Han kommer straks tilbage","Han er sent på den","Han er gået for dagen"], correct:1, explanation:"'Gleich' = straks/om lidt." },
+  { type:"mc", topic:"På arbejdet", question:"Hvad betyder 'Das haben wir so nicht besprochen'?", hint:"besprochen = diskuteret / aftalt", options:["Det har vi ikke aftalt på den måde","Det kan vi ikke lave om","Det er ikke mit ansvar","Det er et godt forslag"], correct:0, explanation:"'Besprechen' = at diskutere/aftale. Bruges når man er uenig om hvad der blev aftalt." },
+  { type:"mc", topic:"Hotel", question:"Du vil tjekke ind. Hvad siger du i receptionen?", options:["Ich habe eine Reservierung auf den Namen...","Ich brauche ein Zimmer.","Haben Sie Platz?","Wo ist mein Zimmer?"], correct:0, explanation:"'Ich habe eine Reservierung auf den Namen...' — den klassiske indcheckning." },
+  { type:"mc", topic:"Hotel", question:"Hvad betyder 'Das Zimmer geht zur Straße'?", hint:"Das Zimmer = værelset / zur Straße = mod gaden", options:["Rummet er tæt på udgangen","Rummet vender ud mod gaden","Rummet er meget stort","Rummet har ikke bad"], correct:1, explanation:"Modsat: 'zum Innenhof' (mod gårdhaven) — roligere." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Ich bin 30 Jahre jung.", hint:"jung = ung / alt = gammel (bruges om alder på tysk)", options:["Ich bin 30 Jahre jung.","Ich bin 30 Jahre alt.","Ich habe 30 Jahre alt.","Ich bin jung 30 Jahre."], correct:1, explanation:"På dansk siger vi 'ung', men på tysk siger man altid 'alt' om alder." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Ich vermisse dich sehr viel.", hint:"vermissen = savne / sehr = meget", options:["Ich vermisse dich sehr viel.","Ich vermisse dich sehr.","Ich misse dich sehr.","Ich savne dich sehr."], correct:1, explanation:"'Sehr viel' bruges ikke med 'vermissen'. Det hedder bare 'Ich vermisse dich sehr'." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Das Wetter ist sehr schön heute.", hint:"Heute = i dag — skal stå forrest hvis det fremhæves", options:["Das Wetter ist sehr schön heute.","Heute ist das Wetter sehr schön.","Das Wetter heute ist sehr schön.","Schön ist das Wetter heute sehr."], correct:1, explanation:"Når man starter med 'heute', skal verbet stadig stå på 2. plads." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Ich bin seit drei Jahren hier wohnen.", hint:"seit = siden / wohnen = bo", options:["Ich bin seit drei Jahren hier wohnen.","Ich wohne seit drei Jahren hier.","Ich habe seit drei Jahren hier gewohnt.","Ich wohne hier seit drei Jahre."], correct:1, explanation:"Igangværende handling = præsens på tysk: 'Ich WOHNE seit drei Jahren hier'." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Kannst du mich rufen zurück?", hint:"zurückrufen = ringe tilbage (samlet verbum)", options:["Kannst du mich rufen zurück?","Kannst du mich zurückrufen?","Kannst du zurück mich rufen?","Kannst du mich zurück rufen?"], correct:1, explanation:"'Zurückrufen' er et separabelt verbum." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Das macht Sinn.", hint:"ergibt Sinn = giver mening (korrekt tysk)", options:["Das macht Sinn.","Das ergibt Sinn.","Das gibt Sinn.","Das hat Sinn."], correct:1, explanation:"'Das macht Sinn' er en anglicisme. Korrekt tysk er 'Das ergibt Sinn'." },
+  { type:"ec", topic:"Typisk fejl", wrong:"Ich bin einverstanden mit du.", hint:"mit = med (kræver dativ: dir, ikke du)", options:["Ich bin einverstanden mit du.","Ich bin einverstanden mit dir.","Ich bin einverstanden mit dich.","Ich bin einverstanden mit Sie."], correct:1, explanation:"Efter 'mit' bruges dativ: 'dir' (ikke 'du'). 'Mit dir' = 'med dig'." },
+];
+
+let state = {
+  screen:"home", level:"B1", xp:0, streak:0, hearts:5,
+  sessionCorrect:0, sessionTotal:0, current:null,
+  selected:null, revealed:false, feedback:null, showXP:false, usedIndices:[],
+};
+
+function heartsHTML(n) {
+  return Array.from({length:5},(_,i)=>
+    `<svg width="18" height="18" viewBox="0 0 24 24" fill="${i<n?'#ef4444':'none'}" stroke="${i<n?'#ef4444':'#475569'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`
+  ).join('');
+}
+
+// Only show hint when question actually contains foreign text to decode
+function shouldShowHint(q) {
+  if (!q.hint) return false;
+  if (q.type === 'ec') return true;
+  // Show hint if question contains a quoted foreign phrase (has quotes with non-Danish content)
+  return /['"][A-ZÄÖÜa-zäöüß].*?['"]/.test(q.question);
+}
+
+function getNextQuestion() {
+  if (state.usedIndices.length >= QUESTIONS.length) state.usedIndices = [];
+  let idx;
+  do { idx = Math.floor(Math.random() * QUESTIONS.length); } while (state.usedIndices.includes(idx));
+  state.usedIndices.push(idx);
+  return {...QUESTIONS[idx]};
+}
+
+function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+
+  if (state.showXP) {
+    const b = document.createElement("div");
+    b.className = "xp-burst";
+    b.textContent = `+${XP_PER_CORRECT} XP`;
+    app.appendChild(b);
+  }
+
+  if (state.screen === "levelup") {
+    app.innerHTML += `<div class="card" style="text-align:center;padding:40px 20px;margin-top:40px">
+      <div style="font-size:60px;margin-bottom:16px">🏆</div>
+      <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:900;color:#facc15;margin-bottom:8px">Level ${Math.floor(state.xp/XP_LEVEL_UP)+1}!</div>
+      <div style="color:#94a3b8;margin-bottom:28px">Du er rykket op. Fortsæt det gode arbejde.</div>
+      <button class="btn-primary" onclick="goHome()">Fortsæt</button>
+    </div>`;
+    return;
+  }
+
+  if (state.screen === "home") {
+    const lvl = Math.floor(state.xp/XP_LEVEL_UP)+1;
+    const xpIn = state.xp % XP_LEVEL_UP;
+    const acc = state.sessionTotal>0 ? Math.round(state.sessionCorrect/state.sessionTotal*100) : 0;
+    const stats = state.sessionTotal>0 ? `
+      <div style="display:flex;gap:10px;margin-bottom:22px">
+        <div class="stat-box"><div class="stat-val">${state.sessionTotal}</div><div class="stat-label">Øvelser</div></div>
+        <div class="stat-box"><div class="stat-val" style="color:#22c55e">${state.sessionCorrect}</div><div class="stat-label">Korrekte</div></div>
+        <div class="stat-box"><div class="stat-val" style="color:${acc>70?'#22c55e':'#f59e0b'}">${acc}%</div><div class="stat-label">Præcision</div></div>
+      </div>` : "";
+
+    app.innerHTML = `<div class="card">
+      <div style="margin-bottom:20px">
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:900;color:#f1f5f9;letter-spacing:-1px">Deutsch<span style="color:#2563eb">Trainer</span></div>
+        <div style="color:#64748b;font-size:12px;margin-bottom:10px">Hverdagstysk</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:#ef4444;font-weight:700;font-size:14px">🔥${state.streak}</span>
+          <div style="display:flex;gap:3px">${heartsHTML(state.hearts)}</div>
+        </div>
+      </div>
+      <div style="margin-bottom:22px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:6px">
+          <span style="font-weight:700;color:#94a3b8">Level ${lvl}</span>
+          <span>${xpIn} / ${XP_LEVEL_UP} XP</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${xpIn}%;background:#2563eb"></div></div>
+      </div>
+      ${stats}
+      <div style="margin-bottom:22px">
+        <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Sværhedsgrad</div>
+        <div style="display:flex;gap:8px">
+          ${["A2","B1","B2","C1"].map(l=>`<button class="level-btn ${state.level===l?'active':''}" onclick="setLevel('${l}')">${l}<br><span style="font-size:10px;font-weight:400">${{A2:'Grundlæg.',B1:'Mellem',B2:'Øvet',C1:'Avanceret'}[l]}</span></button>`).join("")}
+        </div>
+      </div>
+      <button class="btn-primary" onclick="startExercise()" ${state.hearts===0?'disabled style="opacity:0.4"':''}>
+        ${state.hearts===0?"❤️ Ingen liv tilbage":"Start øvelse →"}
+      </button>
+      ${state.hearts===0?'<button class="btn-secondary" onclick="refillHearts()">Genopfyld liv</button>':""}
+    </div>`;
+    return;
+  }
+
+  if (state.screen === "exercise") {
+    const q = state.current;
+    if (!q) { app.innerHTML='<div class="card"><p style="color:#fca5a5;text-align:center;padding:32px">Fejl. <button class="btn-ghost" onclick="startExercise()">Prøv igen</button></p></div>'; return; }
+
+    const opts = q.options.map((opt,i) => {
+      let cls = "option";
+      if (state.revealed) {
+        if (i===q.correct) cls+=" correct";
+        else if (i===state.selected) cls+=" wrong";
+      } else if (i===state.selected) cls+=" selected";
+      return `<button class="${cls}" onclick="selectOption(${i})" ${state.revealed?"disabled":""}><span style="opacity:0.5;margin-right:8px">${["A","B","C","D"][i]}</span>${opt}</button>`;
+    }).join("");
+
+    const feedback = state.feedback==="correct" ? '<div class="feedback-good">✓ Korrekt!</div>'
+      : state.feedback==="wrong" ? '<div class="feedback-bad">✗ Forkert.</div>' : "";
+
+    const hintHTML = shouldShowHint(q) ? `<div style="font-size:12px;color:#64748b;margin-top:8px;font-style:italic">🇩🇪 ${q.hint}</div>` : '';
+
+    const qBox = q.type==="mc"
+      ? `<div style="background:#1e293b;border-radius:14px;padding:18px;margin-bottom:18px;font-size:17px;font-weight:700;color:#f1f5f9;line-height:1.5;font-family:'Syne',sans-serif">${q.question}${hintHTML}</div>`
+      : `<div style="background:#1e293b;border-radius:14px;padding:18px;margin-bottom:18px;font-family:'Syne',sans-serif"><div style="font-size:17px;font-weight:700;color:#fca5a5;font-style:italic;line-height:1.5">${q.wrong}</div>${hintHTML}</div>`;
+
+    const action = !state.revealed
+      ? `<button class="btn-primary" onclick="checkAnswer()" ${state.selected===null?'disabled style="opacity:0.4"':''}>Tjek svar</button>`
+      : `${q.explanation?`<div class="explanation">💬 ${q.explanation}</div>`:""}
+         <button class="btn-primary" onclick="startExercise()">Næste øvelse →</button>`;
+
+    app.innerHTML = `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <button class="btn-ghost" onclick="goHome()">← Tilbage</button>
+        <div style="display:flex;gap:3px">${heartsHTML(state.hearts)}</div>
+        <span style="color:#facc15;font-weight:700;font-size:14px">🔥${state.streak}</span>
+      </div>
+      <div style="margin-bottom:14px">
+        <span class="badge" style="background:#1e3a5f;color:#60a5fa">${q.topic}</span>
+        ${q.type==="ec"?'<span class="badge" style="background:#2d1a4a;color:#c4b5fd;margin-left:6px">Ret fejlen</span>':""}
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">
+        ${q.type==="mc"?"Vælg det rigtige svar":"Find og ret fejlen"}
+      </div>
+      ${qBox}${opts}${feedback}${action}
+    </div>`;
+  }
+}
+
+function goHome() { state.screen="home"; render(); }
+function setLevel(l) { state.level=l; render(); }
+function refillHearts() { state.hearts=5; render(); }
+
+function startExercise() {
+  state.current=getNextQuestion(); state.selected=null; state.revealed=false;
+  state.feedback=null; state.screen="exercise"; render();
+}
+
+function selectOption(i) {
+  if (state.revealed) return;
+  state.selected=i; render();
+}
+
+function checkAnswer() {
+  if (state.selected===null||state.revealed) return;
+  state.revealed=true; state.sessionTotal++;
+  if (state.selected===state.current.correct) {
+    state.feedback="correct"; state.sessionCorrect++; state.streak++;
+    const newXp=state.xp+XP_PER_CORRECT; state.xp=newXp;
+    state.showXP=true; render();
+    setTimeout(()=>{
+      state.showXP=false;
+      if (Math.floor(newXp/XP_LEVEL_UP)>Math.floor((newXp-XP_PER_CORRECT)/XP_LEVEL_UP)) state.screen="levelup";
+      render();
+    },900);
+  } else {
+    state.feedback="wrong"; state.streak=0; state.hearts=Math.max(0,state.hearts-1); render();
+  }
+}
+
+render();
+</script>
+</body>
+</html>
